@@ -1,0 +1,14 @@
+/usr/local/lib/libtime_series.so
+/usr/local/include/include/PP.hpp
+/usr/local/include/include/Coeff_adf.hpp
+/usr/local/include/include/Coeff_pp.hpp
+/usr/local/include/include/Tools.hpp
+/usr/local/include/include/UnitRoot.hpp
+/usr/local/include/include/KPSS.hpp
+/usr/local/include/include/OLS.hpp
+/usr/local/include/include/Coeff_dfgls.hpp
+/usr/local/include/include/DFGLS.hpp
+/usr/local/include/include/CsvManager.hpp
+/usr/local/include/include/Coeff_kpss.hpp
+/usr/local/include/include/ADF.hpp
+/usr/local/include/include/URT.hpp

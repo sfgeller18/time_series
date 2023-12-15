@@ -1,0 +1,32 @@
+[
+{
+  "directory": "/home/sfgeller18/projects/time_series/build",
+  "command": "/usr/bin/g++ -DMKL_ILP64 -DUSE_EIGEN -DUSE_MKL -DUSE_OMP -Dtime_series_EXPORTS -I/usr/include/eigen3 -I/opt/intel/oneapi/mkl/latest/include  -m64 -Wl,--no-as-needed -g -fPIC -std=gnu++11 -o CMakeFiles/time_series.dir/src/ADF.cpp.o -c /home/sfgeller18/projects/time_series/src/ADF.cpp",
+  "file": "/home/sfgeller18/projects/time_series/src/ADF.cpp"
+},
+{
+  "directory": "/home/sfgeller18/projects/time_series/build",
+  "command": "/usr/bin/g++ -DMKL_ILP64 -DUSE_EIGEN -DUSE_MKL -DUSE_OMP -Dtime_series_EXPORTS -I/usr/include/eigen3 -I/opt/intel/oneapi/mkl/latest/include  -m64 -Wl,--no-as-needed -g -fPIC -std=gnu++11 -o CMakeFiles/time_series.dir/src/DFGLS.cpp.o -c /home/sfgeller18/projects/time_series/src/DFGLS.cpp",
+  "file": "/home/sfgeller18/projects/time_series/src/DFGLS.cpp"
+},
+{
+  "directory": "/home/sfgeller18/projects/time_series/build",
+  "command": "/usr/bin/g++ -DMKL_ILP64 -DUSE_EIGEN -DUSE_MKL -DUSE_OMP -Dtime_series_EXPORTS -I/usr/include/eigen3 -I/opt/intel/oneapi/mkl/latest/include  -m64 -Wl,--no-as-needed -g -fPIC -std=gnu++11 -o CMakeFiles/time_series.dir/src/KPSS.cpp.o -c /home/sfgeller18/projects/time_series/src/KPSS.cpp",
+  "file": "/home/sfgeller18/projects/time_series/src/KPSS.cpp"
+},
+{
+  "directory": "/home/sfgeller18/projects/time_series/build",
+  "command": "/usr/bin/g++ -DMKL_ILP64 -DUSE_EIGEN -DUSE_MKL -DUSE_OMP -Dtime_series_EXPORTS -I/usr/include/eigen3 -I/opt/intel/oneapi/mkl/latest/include  -m64 -Wl,--no-as-needed -g -fPIC -std=gnu++11 -o CMakeFiles/time_series.dir/src/OLS.cpp.o -c /home/sfgeller18/projects/time_series/src/OLS.cpp",
+  "file": "/home/sfgeller18/projects/time_series/src/OLS.cpp"
+},
+{
+  "directory": "/home/sfgeller18/projects/time_series/build",
+  "command": "/usr/bin/g++ -DMKL_ILP64 -DUSE_EIGEN -DUSE_MKL -DUSE_OMP -Dtime_series_EXPORTS -I/usr/include/eigen3 -I/opt/intel/oneapi/mkl/latest/include  -m64 -Wl,--no-as-needed -g -fPIC -std=gnu++11 -o CMakeFiles/time_series.dir/src/PP.cpp.o -c /home/sfgeller18/projects/time_series/src/PP.cpp",
+  "file": "/home/sfgeller18/projects/time_series/src/PP.cpp"
+},
+{
+  "directory": "/home/sfgeller18/projects/time_series/build",
+  "command": "/usr/bin/g++ -DMKL_ILP64 -DUSE_EIGEN -DUSE_MKL -DUSE_OMP -Dtime_series_EXPORTS -I/usr/include/eigen3 -I/opt/intel/oneapi/mkl/latest/include  -m64 -Wl,--no-as-needed -g -fPIC -std=gnu++11 -o CMakeFiles/time_series.dir/src/UnitRoot.cpp.o -c /home/sfgeller18/projects/time_series/src/UnitRoot.cpp",
+  "file": "/home/sfgeller18/projects/time_series/src/UnitRoot.cpp"
+}
+]
