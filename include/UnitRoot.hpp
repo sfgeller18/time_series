@@ -2,8 +2,16 @@
 #define UNITROOT_HPP
 
 #include <memory>
+#include <type_traits>
 
 namespace urt {
+
+template <typename T>
+struct IsVectorType : std::false_type {};
+
+template <typename T>
+struct IsVectorType<Vector<std::remove_reference<T>>> : std::true_type {};
+
 
 //=================================================================================================
 
@@ -56,6 +64,7 @@ class UnitRoot
    std::string test_name;                 // test name
 
    T stat = 0.0;                 // test statistic
+   int rank = 0;                // Conitegrating relationships
    T pval = 0.0;                 // test p-value
 
    int nobs;                     // number of observations
@@ -97,6 +106,19 @@ class UnitRoot
    void adf_regression();
    // compute ADF test
    void compute_adf();
+   // setup Data object for Johansen test
+    template <typename U = T>
+    std::enable_if<IsVectorType<U>::value>
+    setup_johansen();
+
+   // run Johansen test for a given lag
+    template <typename U = T>
+    std::enable_if<IsVectorType<U>::value>
+    johansen_regression();
+    // compute Johansen test
+    template <typename U = T>
+    std::enable_if<IsVectorType<U>::value>
+    compute_johansen();
 
  private:
    Vector<T> data;               // original data used for the test
@@ -114,6 +136,7 @@ class UnitRoot
    float prev_level;             // previous statistic (absolute) value for lag selection
 
    int nrows;                    // number of rows in matrix x and elements in vector y
+   int npoints;                  // number of data series tested (for cointegration only)
    int prev_lags = 0;            // previous number of lags
    int prev_max_lags = 0;        // previous maximum number of lags
    int prev_niter = 1000;        // previous number of iteratons     

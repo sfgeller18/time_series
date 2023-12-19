@@ -1,10 +1,8 @@
 #include "../include/URT.hpp"
 
-#ifdef USE_OMP 
   #include <omp.h>
   // getting maximum number of threads available
   static const int MAX_THREADS = omp_get_max_threads();
-#endif
 
 namespace urt {
 
@@ -18,11 +16,7 @@ UnitRoot<T>::UnitRoot(const Vector<T>& data, int lags, const std::string& trend,
    this->data = data; 
    // setting pointer to data      
    set_data();
-   #ifdef USE_ARMA
-   nobs = data.n_rows;
-   #elif defined(USE_BLAZE) || defined(USE_EIGEN) 
    nobs = data.size();
-   #endif        
    this->lags = lags;
    this->trend = trend;
    this->regression = regression;
@@ -38,11 +32,7 @@ UnitRoot<T>::UnitRoot(const Vector<T>& data, const std::string& method, const st
    this->data = data;
    // setting pointer to data
    set_data();
-   #ifdef USE_ARMA
-   nobs = data.n_rows;
-   #elif defined(USE_BLAZE) || defined(USE_EIGEN) 
    nobs = data.size();
-   #endif   
    this->method = method;
    this->trend = trend;
    this->regression = regression;
@@ -348,28 +338,13 @@ void UnitRoot<T>::set_trend()
 template <typename T>
 void UnitRoot<T>::ols_detrend()
 {  
-   // initializing w => constant case
-   #ifdef USE_ARMA
-   Matrix<T> w(nobs, 1, arma::fill::ones); 
-   #elif USE_BLAZE
-   Matrix<T> w(nobs, 1);
-   w = forEach(w, [](T val){ return 1; });
-   #elif USE_EIGEN
+
    Matrix<T> w = Matrix<T>::Ones(nobs, 1);
-   #endif
 
    // constant trend case
    if (trend == "ct") {
-      // appending new column to w
-      #ifdef USE_ARMA
-      w.insert_cols(1, arma::cumsum(w));
-      #elif USE_BLAZE
-      w.resize(nobs, w.columns() + 1);
-      std::partial_sum(&w(0, 0), &w(nobs, 0), &w(0, 1));
-      #elif USE_EIGEN
       w.conservativeResize(Eigen::NoChange, w.cols() + 1);
       w.col(w.cols() - 1) = Vector<T>::LinSpaced(w.rows(), 0, w.rows() - 1);
-      #endif
    }
    else if (trend == "nc") {
       throw std::invalid_argument("\n  ERROR: in UnitRoot<T>::ols_detrend(), no detrending possible when regression trend set to no constant.\n\n");
@@ -456,13 +431,8 @@ void UnitRoot<T>::adf_regression()
    // NB: the user might see this exception thrown again even after having increased the data dimension in the case of lag length optimization as max_lags is function of the data dimension, a second adjustment will be then necessary before the data dimension is accepted
 
    // allocating memory
-   #ifdef USE_ARMA
-   x.set_size(nr, nc);
-   y.set_size(nr);
-   #elif defined(USE_BLAZE) || defined(USE_EIGEN)
    x.resize(nr, nc);
    y.resize(nr);
-   #endif
 
    for (int i = 0; i < nr; ++i) {
       // filling vector of dependent variable
@@ -515,17 +485,10 @@ void UnitRoot<T>::initialize_adf()
     // NB: the user might see this exception thrown again even after having increased the data dimension in the case of lag length optimization as max_lags is function of the data dimension, a second adjustment will be then necessary before the data dimension is accepted
 
    // allocating memory
-   #ifdef USE_ARMA
-   x.set_size(nrows, ncols);
-   y.set_size(nrows);
-   #elif defined(USE_EIGEN) || defined(USE_BLAZE)
    x.resize(nrows, ncols);
    y.resize(nrows);
-   #endif
 
-   #ifdef _OPENMP
    #pragma omp parallel for num_threads(MAX_THREADS)
-   #endif
    for (int i = 0; i < nrows; ++i) {
       // filling vector of dependent variable
       y[i] = ptr->operator[](i + 1) - ptr->operator[](i);
@@ -560,9 +523,7 @@ void UnitRoot<T>::optimize_lag()
 {
    // if new method only (with an optimization previously been run and not being T-STAT) we use the same results as before without recomputing the tests for all lags from max_lags to 0, we only compute the new information criterion value
    if (new_method && !prev_method.empty() && prev_method[0] != 'T') {
-      #ifdef _OPENMP
       #pragma omp parallel for num_threads(MAX_THREADS)
-      #endif
       for (int i = max_lags; i > -1; --i) {
          results[i]->IC = (this->*ICfunc)(results[i]);
       }
@@ -575,22 +536,13 @@ void UnitRoot<T>::optimize_lag()
       results.resize(max_lags + 1);
  
       // This for loop will be executed by a number of threads equal to MAX_THREADS or will ignore preprocessor directives if compiler does not support OpenMP or if OpenMP not called
-      #ifdef _OPENMP
       #pragma omp parallel for num_threads(MAX_THREADS)
-      #endif
       // searching for numnber of lags minimizing IC
       for (int i = max_lags; i > -1; --i) {
-         // selecting y sub-vector and x sub-matrix
-         #ifdef USE_ARMA
-       	Vector<T> ysub(y.memptr() + i, nrows - i, false);
-         Matrix<T> xsub(x.submat(i, 0, nrows - 1, npar + i - 1));
-         #elif USE_BLAZE
-         Vector<T> ysub(subvector(y, i, nrows - i));
-         Matrix<T> xsub(submatrix(x, i, 0, nrows - i, npar + i));
-         #elif USE_EIGEN
+ 
          Vector<T> ysub(y.segment(i, nrows - i));
          Matrix<T> xsub(x.block(i, 0, nrows - i, npar + i));
-         #endif
+  
          // adding test result for current number of lags to results vector      
          results[i] = std::make_shared<OLS<T>>(ysub, xsub);         
          // recording number of lags for current test
@@ -610,16 +562,8 @@ void UnitRoot<T>::optimize_lag()
    // if OLS regression statistics are required
    if (regression) {
       // selecting y sub-vector and x sub-matrix
-      #ifdef USE_ARMA
-      Vector<T> ysub(y.memptr() + lags, nrows - lags, false);
-      Matrix<T> xsub(x.submat(lags, 0, nrows - 1, npar + lags - 1));
-      #elif USE_BLAZE
-      Vector<T> ysub(subvector(y, lags, nrows - lags));
-      Matrix<T> xsub(submatrix(x, lags, 0, nrows - lags, npar + lags)); 
-      #elif USE_EIGEN
       Vector<T> ysub(y.segment(lags, nrows - lags));
       Matrix<T> xsub(x.block(lags, 0, nrows - lags, npar + lags));
-      #endif
       // computing OLS regression statistics
       result->get_stats(ysub, xsub);
       prev_regression = true;
@@ -647,35 +591,16 @@ T UnitRoot<T>::IC(const std::shared_ptr<OLS<T>>& res)
     // plus 2 for the model with constant trend
     // plus 3 for the model with quadratic trend
   
-   #ifdef USE_ARMA
-   // getting number of regressors
-   int k = res->param.n_elem;
-   // getting number of residuals
-   int n = res->resid.n_elem;
-   // getting residuals sub-vector 
-   Vector<T> z(res->resid.memptr() + max_lags - res->lags, n - max_lags + res->lags, false);
-   #elif defined(USE_BLAZE) || defined(USE_EIGEN) 
+
    // getting number of regressors
    int k = res->param.size();
    // getting number of residuals
    int n = res->resid.size();
    // getting residuals sub-vector
-   #ifdef USE_BLAZE
-   Vector<T> z(subvector(res->resid, max_lags - res->lags, n - max_lags + res->lags));
-   #elif USE_EIGEN
    Vector<T> z(res->resid.segment(max_lags - res->lags, n - max_lags + res->lags));
-   #endif
-   #endif
    // computing factor
    T factor = 1.0 / (n - max_lags + res->lags);
-   // computing residuals variance
-   #ifdef USE_ARMA
-   T sigma2 = arma::as_scalar(z.t() * z) * factor;
-   #elif USE_BLAZE
-   T sigma2 = (blaze::trans(z) * z) * factor;
-   #elif USE_EIGEN
    T sigma2 = z.dot(z) * factor;
-   #endif
    // computing criterion
    return log(sigma2) + ICcc * k * factor;
 }
@@ -686,45 +611,18 @@ T UnitRoot<T>::IC(const std::shared_ptr<OLS<T>>& res)
 template <typename T>
 T UnitRoot<T>::MIC(const std::shared_ptr<OLS<T>>& res)
 { 
-   #ifdef USE_ARMA
-   // getting number of residuals
-   int n = res->resid.n_elem;
-   // getting residuals sub-vector
-   Vector<T> z(res->resid.memptr() + max_lags - res->lags, n - max_lags + res->lags, false);
-   #elif defined(USE_BLAZE) || defined(USE_EIGEN)
    // getting number of residuals
    int n = res->resid.size();
    // getting residuals sub-vector
-   #elif USE_BLAZE
-   Vector<T> z(subvector(res->resid, max_lags - res->lags, n - max_lags + res->lags));
-   #ifdef USE_EIGEN
    Vector<T> z(res->resid.segment(max_lags - res->lags, n - max_lags + res->lags));
-   #endif
-   #endif
    // computing factor
    T factor = 1.0 / (n - max_lags + res->lags);
-   #ifdef USE_ARMA
-   // computing residuals variance
-   T sigma2 = arma::as_scalar(z.t() * z) * factor;
-   // getting data lagged 1 term sub-vector
-   Vector<T> y(ptr->memptr() + max_lags, nobs - max_lags - 1, false);
-   // computing y^2
-   T y2 = arma::as_scalar(y.t() * y);
-   #elif USE_BLAZE
-   // computing residuals variance
-   T sigma2 = (blaze::trans(z) * z) * factor;
-   // getting data lagged 1 term sub-vector
-   Vector<T> y(subvector(*ptr, max_lags, nobs - max_lags - 1));
-   // computing y^2
-   T y2 = blaze::trans(y) * y; 
-   #elif USE_EIGEN
    // computing residuals variance
    T sigma2 = z.dot(z) * factor;
    // getting data lagged 1 term sub-vector
    Vector<T> y(ptr->segment(max_lags, nobs - max_lags - 1));
    // computing y^2
    T y2 = y.transpose() * y;
-   #endif
    // computing tau
    T tau = (res->param[0] * res->param[0] * y2) / sigma2; 
    // computing criterion
@@ -746,17 +644,9 @@ void UnitRoot<T>::select_lag()
 
    // searching for optimal lags
    for (int i = max_lags; i > -1; --i) {
-      // selecting y sub-vector and x sub-matrix
-      #ifdef USE_ARMA
-      Vector<T> ysub(y.memptr() + i, nrows - i, false);
-      Matrix<T> xsub(x.submat(i, 0, nrows - 1, npar + i - 1));
-      #elif USE_BLAZE
-      Vector<T> ysub(subvector(y, i, nrows - i));
-      Matrix<T> xsub(submatrix(x, i, 0, nrows - i, npar + i)); 
-      #elif USE_EIGEN
+      // selecting y sub-vector and x sub-matrix 
       Vector<T> ysub(y.segment(i, nrows - i));
       Matrix<T> xsub(x.block(i, 0, nrows - i, npar + i));
-      #endif
       // adding test result for current number of lags to results vector      
       results[i] = std::make_shared<OLS<T>>(ysub, xsub);
       // stopping at the first significant lags difference term for T-STAT method
@@ -783,16 +673,8 @@ void UnitRoot<T>::select_lag()
       // if OLS regression statistics are required
       if (regression) {
          // selecting y sub-vector and x sub-matrix
-         #ifdef USE_ARMA
-         Vector<T> ysub(y.memptr(), nrows, false);
-         Matrix<T> xsub(x.submat(0, 0, nrows - 1, npar - 1));
-         #elif USE_BLAZE
-         Vector<T> ysub(subvector(y, 0, nrows - 0));
-         Matrix<T> xsub(submatrix(x, 0, 0, nrows - 0, npar + 0));
-         #elif USE_EIGEN
          Vector<T> ysub(y.segment(0, nrows));
          Matrix<T> xsub(x.block(0, 0, nrows, npar));
-         #endif
          result->get_stats(ysub, xsub);
          prev_regression = true;
       }
@@ -858,16 +740,8 @@ void UnitRoot<T>::compute_adf()
       // if the only change is regression set to true 
       else if (regression && !prev_regression) {
          // selecting y sub-vector and x sub-matrix
-         #ifdef USE_ARMA
-         Vector<T> ysub(y.memptr() + lags, nrows - lags, false);
-         Matrix<T> xsub(x.submat(lags, 0, nrows - 1, npar + lags - 1));
-         #elif USE_BLAZE
-         Vector<T> ysub(subvector(y, lags, nrows - lags));
-         Matrix<T> xsub(submatrix(x, lags, 0, nrows - lags, npar + lags)); 
-         #elif USE_EIGEN
          Vector<T> ysub(y.segment(lags, nrows - lags));
          Matrix<T> xsub(x.block(lags, 0, nrows - lags, npar + lags));
-         #endif
          result->get_stats(ysub, xsub);
          prev_regression = true;
       }
@@ -893,6 +767,177 @@ void UnitRoot<T>::compute_adf()
 }
 
 //*************************************************************************************************
+   template <typename T>
+    template <typename U>
+    std::enable_if<urt::IsVectorType<U>::value>
+    UnitRoot<T>::setup_johansen() {
+    static_assert(std::is_convertible<T, Vector<std::remove_reference<T>>>::value,
+                  "T must be convertible to Vector<P> for any numerical type P");
+
+   // number of lines in y vector and x matrix
+   this->nrows = nobs - 1;
+   // number of columns
+   int ncols = npar + max_lags;
+   // set number of time-series tested for cointegration
+   this->npoints = ptr->operator[](0).size();
+
+   if (nrows - max_lags < ncols) {
+      throw std::invalid_argument("\n  ERROR: in UnitRoot<T>::adf_regression(), more data required to compute ADF test for " + std::to_string(max_lags) + " lags, at least " + std::to_string(ncols - nrows + max_lags) + " element(s) need(s) to be added or the number of lags to be reduced.\n\n");
+   }  // NB: the user might see this exception thrown again even after having increased the data dimension in the case of lag length optimization as max_lags is function of the data dimension, a second adjustment will be then necessary before the data dimension is accepted
+   
+   x.resize(nrows, ncols);
+   y.resize(nrows);
+
+   #pragma omp parallel for num_threads(MAX_THREADS)
+      for (int i = 0; i < nrows; ++i) {
+      // filling vector of dependent variable
+      y[i] = ptr->operator[](i + 1) - ptr->operator[](i);
+      // filling matrix of independent variables
+      x(i, 0) = ptr->operator[](i);
+      // Time Dependency Terms, quadratic term added for generality but for your sake, keep nparam <=3
+      if (npar >= 2) { 
+         x(i, 1) = 1; 
+         if (npar >= 3) {
+            x(i, 2) = i + 1;
+            if (npar == 4) {
+               x(i, 3) = x(i, 2) * x(i, 2);
+            }
+         }
+      }
+      // computing lag difference terms
+      for (int j = 0; j < max_lags ; ++j) {
+         if (j < i) {
+            x(i, j + npar) = ptr->operator[](i - j) - ptr->operator[](i - j - 1);
+         } else {
+            x(i, j + npar) = 0;
+         }
+      }   
+   }
+
+};
+
+//*************************************************************************************************
+
+
+//*************************************************************************************************
+   template <typename T>      
+    template <typename U>
+    std::enable_if<urt::IsVectorType<U>::value>
+    UnitRoot<T>::johansen_regression() {
+      // if OLS regression statistics are required
+   if (!regression) {
+      result = std::make_shared<OLS<T>>(y, x);
+   } else {
+      result = std::make_shared<OLS<T>>(y, x, true);
+      prev_regression = true;
+   }
+   urt::Vector<T> paramMatrix = (result->param)[0];
+  paramMatrix.asMatrix();
+  Eigen::SelfAdjointEigenSolver<urt::Matrix<T>> eigensolver(paramMatrix);
+
+urt::Vector<T> eigenvalues;
+urt::Matrix<T> eigenvectors;
+T sumLogs = 0.0;
+
+if (eigensolver.info() != Eigen::Success) {
+    // handle decomposition failure
+    std::cerr << "Eigenvalue decomposition failed!" << std::endl;
+} else {
+    // Get the eigenvalues and eigenvectors
+    eigenvalues = eigensolver.eigenvalues();
+    eigenvectors = eigensolver.eigenvectors();
+    
+    // Calculate sumLogs
+    for (int j = 0; j < eigenvalues.size(); ++j) {
+        sumLogs += std::log(1.0 - eigenvalues[j]);
+    }
+    
+    // Rest of your code that uses eigenvalues, eigenvectors, and sumLogs
+    stat = -npoints * sumLogs;
+}
+};
+
+//*************************************************************************************************
+
+
+//*************************************************************************************************
+   template <typename T>      
+    template <typename U>
+    std::enable_if<urt::IsVectorType<U>::value>
+    UnitRoot<T>::compute_johansen()
+{
+   setup_johansen();
+   // ADF test with lag length optimization
+   if (optim) {
+      // declaring functor to lag optimization function
+      void (UnitRoot<T>::*optim_func)();
+
+      if (method[0] != 'T') {
+         // setting information criterion (for all methods excepted T-STAT)
+         set_IC();
+         // optimizing lag length
+         optim_func = &UnitRoot<T>::optimize_lag;
+      } else {
+         // setting statistic level for optimal lag selection (for T-STAT method only)
+         set_level();
+         // selecting optimal lag length
+         optim_func = &UnitRoot<T>::select_lag;
+      }
+      // if new trend or new max_lags (for all methods)
+      if (new_trend || new_lags) {
+         // computing vector and matrix for OLS 
+         setup_johansen();
+         // turning new_method to false to force a new optimization as trend or lags is new
+         new_method = false;
+         // optimizing lag
+         (this->*optim_func)();             
+         new_trend = false;
+         new_lags = false;
+      }
+      // if new method only (for all methods)
+      else if (new_method) { 
+         // optimizing lag
+         (this->*optim_func)();
+         new_method = false;
+      }
+      // if new level (for T-STAT method only)
+      else if (method[0] == 'T' && new_level) {
+         // selecting optimal lag length
+         (this->*optim_func)();
+         new_level = false;
+      }
+      // if the only change is regression set to true 
+      else if (regression && !prev_regression) {
+         // selecting y sub-vector and x sub-matrix
+         Vector<T> ysub(y.segment(lags, nrows - lags));
+         Matrix<T> xsub(x.block(lags, 0, nrows - lags, npar + lags));
+         result->get_stats(ysub, xsub);
+         prev_regression = true;
+      }
+      // if user did not modify any parameter we set lags back to prev_lags as lags has become max_lags in set_lags()
+      else {
+         lags = prev_lags;
+      }
+   }
+   // Regress for a given lag
+   else {
+      // if new trend or new lags or new data from boostrap
+      if (new_trend || new_lags || new_data) {
+         johansen_regression();
+         new_trend = false;
+         new_lags = false;
+      }
+      // if the only change is regression set to true 
+      else if (regression && !prev_regression) {
+         result->get_stats(y, x);
+         prev_regression = true;
+      } 
+   }
+}
+
+//*************************************************************************************************
+
+
 
 template <typename T>
 void UnitRoot<T>::run_bootstrap()
@@ -904,17 +949,8 @@ void UnitRoot<T>::run_bootstrap()
    T saved_stat = stat;
    OLS<T> saved_result = *result;   
  
-   // computing centred residuals from original test
-   #ifdef USE_ARMA 
-   Vector<T> eps = result->resid - arma::mean(result->resid);
-   #elif USE_BLAZE
-   Vector<T> eps(result->resid);
-   T m = std::accumulate(&eps[0], &eps[eps.size()], 0.0) / eps.size();
-   eps = forEach(eps, [&m](const T& val){ return val - m; });  
-   #elif USE_EIGEN
    T m = result->resid.mean();
    Vector<T> eps = result->resid - Vector<T>::Constant(result->resid.size(), 1, m);   
-   #endif 
 
    // computing vector of lags difference terms u dimension
    int nu = nobs - 1;
@@ -922,44 +958,18 @@ void UnitRoot<T>::run_bootstrap()
    Vector<T> u, delta;
 
    if (lags > 0) {
-      #ifdef USE_ARMA 
-      // initializing vector of lags difference terms
-      u = ptr->subvec(1, lags - 1) - ptr->subvec(0, lags - 2);
-      // taking lags difference terms coefficients from original test in reverse order
-      delta = arma::flipud(result->param.subvec(npar, result->param.size() - 1));
-      #elif USE_BLAZE
-      // initializing vector of lags difference terms
-      u = subvector(*ptr, 1, lags - 1) - subvector(*ptr, 0, lags - 1); 
-      // taking lags difference terms coefficients from original test in reverse order
-      delta = subvector(result->param, npar, result->param.size() - npar);  
-      std::reverse(&delta[0], &delta[delta.size()]);
-      #elif USE_EIGEN
       // initializing vector of lags difference terms
       u = ptr->segment(1, lags - 1) - ptr->segment(0, lags - 1); 
       // taking lags difference terms coefficients from original test in reverse order
       delta = result->param.segment(npar, result->param.size() - npar).reverse();
-      #endif    
    }
-   #if defined(USE_ARMA) || defined(USE_BLAZE)
-   u.resize(nu);
-   #elif USE_EIGEN
    u.conservativeResize(nu, Eigen::NoChange);
-   #endif
 
    // allowing test statistic recalculation even if all parameters remain identical
    new_data = true;
 
-   // initializing new path 
-   #ifdef USE_ARMA 
-   Vector<T> new_path(ptr->memptr(), lags + 1, false);
-   new_path.resize(nobs);
-   #elif USE_BLAZE
-   Vector<T> new_path(subvector(*ptr, 0, lags + 1));
-   new_path.resize(nobs);
-   #elif USE_EIGEN
    Vector<T> new_path(ptr->segment(0, lags + 1));
    new_path.conservativeResize(nobs, Eigen::NoChange);
-   #endif
     
    // vector of new statistics
    std::vector<T> stats(niter);
@@ -977,13 +987,7 @@ void UnitRoot<T>::run_bootstrap()
             case 0:
                break;
             default:
-               #ifdef USE_ARMA 
-               term = arma::as_scalar(arma::Col<T>(u.memptr() + i - lags, lags, false).t() * delta);
-               #elif USE_BLAZE
-               term = blaze::trans(subvector(u, i - lags, lags)) * delta;
-               #elif USE_EIGEN 
                term = u.segment(i - lags, lags).transpose() * delta;          
-               #endif 
          }
          u[i] = term + eps[runif()];
          new_path[i + 1] = new_path[i] + u[i];

@@ -37,6 +37,7 @@
 #include "./DFGLS.hpp"
 #include "./PP.hpp"
 #include "./KPSS.hpp"
+#include "./Johansen.hpp"
 
 // template class specializations
 template class urt::OLS<double>;
@@ -51,7 +52,8 @@ template class urt::PP<double>;
 template class urt::PP<float>;
 template class urt::KPSS<double>;
 template class urt::KPSS<float>;
-
+template class urt::Johansen<urt::Vector<double>>;
+template class urt::Johansen<urt::Vector<float>>;
 //=================================================================================================
 
 #endif
